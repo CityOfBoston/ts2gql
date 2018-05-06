@@ -12,6 +12,10 @@ export function load(schemaRootPath:string, rootNodeNames:string[]):types.TypeMa
   const program = typescript.createProgram([schemaRootPath], {});
   const schemaRoot = program.getSourceFile(schemaRootPath);
 
+  if (!schemaRoot) {
+    throw new Error(`Could not load source file from ${schemaRootPath}`);
+  }
+
   const interfaces:{[key:string]:typescript.InterfaceDeclaration} = {};
   typescript.forEachChild(schemaRoot, (node) => {
     if (!isNodeExported(node)) return;
