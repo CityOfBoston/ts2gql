@@ -21,14 +21,17 @@ export default class Emitter {
     let content;
     if (node.type === 'alias') {
       content = this._emitAlias(node, name);
-    } else if (node.type === 'interface') {
+    } else if (node.type === 'interface' || node.type === 'class') {
       content = this._emitInterface(node, name);
     } else if (node.type === 'enum') {
       content = this._emitEnum(node, name);
     } else {
       throw new Error(`Don't know how to emit ${node.type} as a top level node`);
     }
-    stream.write(`${content}\n\n`);
+
+    if (content) {
+      stream.write(`${content}\n\n`);
+    }
   }
 
   // Preprocessing
@@ -98,7 +101,7 @@ export default class Emitter {
     }
   }
 
-  _emitInterface(node:Types.InterfaceNode, name:Types.SymbolName):string {
+  _emitInterface(node:Types.InterfaceNode | Types.ClassNode, name:Types.SymbolName):string | null{
     // GraphQL expects denormalized type interfaces
     const members = <Types.Node[]>_(this._transitiveInterfaces(node))
       .map(i => i.members)
@@ -110,11 +113,16 @@ export default class Emitter {
     // GraphQL can't handle empty types or interfaces, but we also don't want
     // to remove all references (complicated).
     if (!members.length) {
-      members.push({
-        type: 'property',
-        name: '__placeholder',
-        signature: {type: 'boolean'},
-      });
+      if (node.concrete) {
+        members.push({
+          type: 'property',
+          name: '__placeholder',
+          signature: {type: 'boolean'},
+        });
+      } else {
+        // If no one was referencing this to begin with, just ignore it.
+        return null;
+      }
     }
 
     const properties = _.map(members, (member) => {
@@ -258,7 +266,7 @@ export default class Emitter {
     return content.map(s => `  ${s}`).join('\n');
   }
 
-  _transitiveInterfaces(node:Types.InterfaceNode):Types.InterfaceNode[] {
+  _transitiveInterfaces(node:Types.InterfaceNode | Types.ClassNode):Array<Types.InterfaceNode | Types.ClassNode> {
     let interfaces = [node];
     for (const name of node.inherits) {
       const inherited = <Types.InterfaceNode>this.types[name];

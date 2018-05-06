@@ -13,6 +13,13 @@ export interface InterfaceNode extends ComplexNode {
   concrete?:boolean; // Whether the type is directly used (returned).
 }
 
+export interface ClassNode extends ComplexNode {
+  type:'class';
+  members:NamedNode[];
+  inherits:SymbolName[];
+  concrete?:boolean; // Whether the type is directly used (returned).
+}
+
 export interface MethodNode extends ComplexNode {
   type:'method';
   name:string;
@@ -83,6 +90,7 @@ export interface NotNullNode {
 
 export type Node =
   InterfaceNode |
+  ClassNode |
   MethodNode |
   ArrayNode |
   ReferenceNode |

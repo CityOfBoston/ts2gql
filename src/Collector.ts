@@ -54,10 +54,14 @@ export default class Collector {
     let result:types.Node|null = null;
     if (node.kind === SyntaxKind.InterfaceDeclaration) {
       result = this._walkInterfaceDeclaration(<typescript.InterfaceDeclaration>node);
+    } else if (node.kind === SyntaxKind.ClassDeclaration) {
+      result = this._walkClassDeclaration(<typescript.ClassDeclaration>node);
     } else if (node.kind === SyntaxKind.MethodSignature) {
       result = this._walkMethodSignature(<typescript.MethodSignature>node);
     } else if (node.kind === SyntaxKind.PropertySignature) {
       result = this._walkPropertySignature(<typescript.PropertySignature>node);
+    } else if (node.kind === SyntaxKind.PropertyDeclaration) {
+      result = this._walkPropertyDeclaration(<typescript.PropertyDeclaration>node);
     } else if (node.kind === SyntaxKind.TypeReference) {
       result = this._walkTypeReferenceNode(<typescript.TypeReferenceNode>node);
     } else if (node.kind === SyntaxKind.TypeAliasDeclaration) {
@@ -126,6 +130,36 @@ export default class Collector {
     });
   }
 
+  _walkClassDeclaration(node:typescript.ClassDeclaration):types.Node | null {
+    if (!node.name) {
+      return null;
+    }
+
+    // TODO: How can we determine for sure that this is the global date?
+    if (node.name.text === 'Date') {
+      return {type: 'reference', target: 'Date'};
+    }
+
+    return this._addType(node, () => {
+      const inherits = [];
+      if (node.heritageClauses) {
+        for (const clause of node.heritageClauses) {
+          for (const type of clause.types) {
+            const symbol = this._symbolForNode(type.expression);
+            this._walkSymbol(symbol);
+            inherits.push(this._nameForSymbol(symbol));
+          }
+        }
+      }
+
+      return {
+        type: 'class',
+        members: <types.NamedNode[]>node.members.map(this._walkNode).filter((n) => n.type),
+        inherits,
+      };
+    });
+  }
+
   _walkMethodSignature(node:typescript.MethodSignature):types.Node {
     const signature = this.checker.getSignatureFromDeclaration(node);
     const parameters:types.TypeMap = {};
@@ -143,6 +177,21 @@ export default class Collector {
   }
 
   _walkPropertySignature(node:typescript.PropertySignature):types.Node {
+    return {
+      type: 'property',
+      name: node.name.getText(),
+      signature: this._walkNode(node.type!),
+    };
+  }
+
+  _walkPropertyDeclaration(node:typescript.PropertyDeclaration):types.Node | null {
+    // We don't export private or protected members
+    if (node.modifiers &&
+        node.modifiers.find((t: typescript.Modifier) =>
+          t.kind === SyntaxKind.PrivateKeyword || t.kind === SyntaxKind.ProtectedKeyword)) {
+      return null;
+    }
+
     return {
       type: 'property',
       name: node.name.getText(),
@@ -262,10 +311,10 @@ export default class Collector {
   // Utility
 
   _addType(
-    node:typescript.InterfaceDeclaration|typescript.TypeAliasDeclaration|typescript.EnumDeclaration,
+    node:typescript.InterfaceDeclaration|typescript.TypeAliasDeclaration|typescript.EnumDeclaration|typescript.ClassDeclaration,
     typeBuilder:() => types.Node,
   ):types.Node {
-    const name = this._nameForSymbol(this._symbolForNode(node.name));
+    const name = this._nameForSymbol(this._symbolForNode(node.name!));
     if (this.types[name]) return this.types[name];
     const type = typeBuilder();
     (<types.ComplexNode>type).documentation = util.documentationForNode(node);
