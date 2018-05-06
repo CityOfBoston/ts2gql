@@ -68,6 +68,19 @@ export interface BooleanNode {
   type:'boolean';
 }
 
+export interface NullNode {
+  type: 'null';
+}
+
+export interface UndefinedNode {
+  type: 'undefined';
+}
+
+export interface NotNullNode {
+  type: 'not null';
+  element: Node;
+}
+
 export type Node =
   InterfaceNode |
   MethodNode |
@@ -80,7 +93,10 @@ export type Node =
   LiteralObjectNode |
   StringNode |
   NumberNode |
-  BooleanNode;
+  BooleanNode |
+  NotNullNode |
+  NullNode |
+  UndefinedNode;
 
 export type NamedNode = MethodNode | PropertyNode;
 
