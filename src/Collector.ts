@@ -71,11 +71,15 @@ export default class Collector {
     } else if (node.kind === SyntaxKind.UnionType) {
       result = this._walkUnionTypeNode(<typescript.UnionTypeNode>node);
     } else if (node.kind === SyntaxKind.StringKeyword) {
-      result = {type: 'string'};
+      result = {type: 'not null', element: {type: 'string'}};
     } else if (node.kind === SyntaxKind.NumberKeyword) {
-      result = {type: 'number'};
+      result = {type: 'not null', element: {type: 'number'}};
     } else if (node.kind === SyntaxKind.BooleanKeyword) {
-      result = {type: 'boolean'};
+      result = {type: 'not null', element: {type: 'boolean'}};
+    } else if (node.kind === SyntaxKind.NullKeyword) {
+      result = {type: 'null'};
+    } else if (node.kind === SyntaxKind.UndefinedKeyword) {
+      result = {type: 'undefined'};
     } else if (node.kind === SyntaxKind.ModuleDeclaration) {
       // Nada.
     } else if (node.kind === SyntaxKind.VariableDeclaration) {
@@ -147,7 +151,7 @@ export default class Collector {
   }
 
   _walkTypeReferenceNode(node:typescript.TypeReferenceNode):types.Node {
-    return this._referenceForSymbol(this._symbolForNode(node.typeName));
+    return {type: 'not null', element: this._referenceForSymbol(this._symbolForNode(node.typeName))};
   }
 
   _walkTypeAliasDeclaration(node:typescript.TypeAliasDeclaration):types.Node {
@@ -205,10 +209,10 @@ export default class Collector {
   }
 
   _walkArrayTypeNode(node:typescript.ArrayTypeNode):types.Node {
-    return {
+    return {type: 'not null', element: {
       type: 'array',
       elements: [this._walkNode(node.elementType)],
-    };
+    }};
   }
 
   _walkUnionTypeNode(node:typescript.UnionTypeNode):types.Node {

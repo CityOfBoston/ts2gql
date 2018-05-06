@@ -164,6 +164,8 @@ export default class Emitter {
   _emitExpression = (node:Types.Node):string => {
     if (!node) {
       return '';
+    } else if (node.type === 'not null') {
+      return `${this._emitExpression(node.element)}!`
     } else if (node.type === 'string') {
       return 'String'; // TODO: ID annotation
     } else if (node.type === 'number') {
@@ -180,6 +182,23 @@ export default class Emitter {
           return `${this._name(member.name)}: ${this._emitExpression(member.signature)}`;
         })
         .join(', ');
+    } else if (node.type === 'union') {
+      let notNullTypes = node.types.filter(({type}) => type !== 'null' && type !== 'undefined');
+      
+      // If the lengths don’t match that means that we threw out an undefined
+      // or null part of the union, so we need to unwrap the "not null" of
+      // whatever’s left in the union.
+      if (notNullTypes.length !== node.types.length) {
+        notNullTypes = notNullTypes.map((node) => 
+          node.type === 'not null' ? node.element : node
+        )
+      }
+
+      if (notNullTypes.length !== 1) {
+        throw new Error(`Can't serialize union with != 1 non-null type`);
+      }
+
+      return this._emitExpression(notNullTypes[0])
     } else {
       throw new Error(`Can't serialize ${node.type} as an expression`);
     }
