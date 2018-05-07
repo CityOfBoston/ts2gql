@@ -117,6 +117,8 @@ export default class Emitter {
       });
     }
 
+    const isSchema = this._getDocTag(node, 'schema');
+
     const properties = _.map(members, (member) => {
       if (member.type === 'method') {
         let parameters = '';
@@ -132,13 +134,19 @@ export default class Emitter {
         const returnType = this._emitExpression(member.returns);
         return `${this._name(member.name)}${parameters}: ${returnType}`;
       } else if (member.type === 'property') {
-        return `${this._name(member.name)}: ${this._emitExpression(member.signature)}`;
+        let signature = member.signature;
+        // Schemas can’t have the "!" that "not null" gives us. Schema properties
+        // are always "not null."
+        if (isSchema && signature.type === 'not null') {
+          signature = signature.element;
+        }
+        return `${this._name(member.name)}: ${this._emitExpression(signature)}`;
       } else {
         throw new Error(`Can't serialize ${member.type} as a property of an interface`);
       }
     });
 
-    if (this._getDocTag(node, 'schema')) {
+    if (isSchema) {
       return `schema {\n${this._indent(properties)}\n}`;
     } else if (this._getDocTag(node, 'input')) {
       return `input ${this._name(name)} {\n${this._indent(properties)}\n}`;
