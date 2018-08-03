@@ -88,6 +88,9 @@ export default class Collector {
       // Nada.
     } else if (node.kind === SyntaxKind.VariableDeclaration) {
       // Nada.
+    } else if (node.kind === SyntaxKind.ParenthesizedType) {
+      // We can just recur on the child
+      result = this._walkNode((node as typescript.ParenthesizedTypeNode).type);
     } else {
       console.error(node);
       console.error(node.getSourceFile().fileName);
@@ -177,10 +180,14 @@ export default class Collector {
   }
 
   _walkPropertySignature(node:typescript.PropertySignature):types.Node {
+    const signature = this._walkNode(node.type!);
     return {
       type: 'property',
       name: node.name.getText(),
-      signature: this._walkNode(node.type!),
+      // We use the presence of a "questionToken" to say that the property is
+      // nullable, which means we have to unwrap any 'not null' annotation from
+      // the recursion.
+      signature: (node.questionToken && signature.type === 'not null') ? signature.element : signature,
     };
   }
 

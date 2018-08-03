@@ -43,6 +43,9 @@ export default class Emitter {
         this.renames[name] = node.target.target;
         return true;
       }
+    } else if (node.type === 'alias' && this._hasDocTag(node, 'Int')) {
+      this.renames[name] = 'Int';
+      return true;
     } else if (node.type === 'alias' && this._hasDocTag(node, 'ID')) {
       this.renames[name] = 'ID';
       return true;
